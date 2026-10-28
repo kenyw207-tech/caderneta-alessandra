@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0D203E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Caderneta">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Caderneta de Contas</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
@@ -1531,7 +1538,7 @@ async function seed(){
 }
 async function start(){
   render();
-  if(OFFLINE){ memoryMode('Versão para baixar: os dados ficam salvos só neste navegador e neste aparelho. Limpar os dados do navegador apaga tudo.'); return; }
+  if(OFFLINE){ memoryMode('Seus dados ficam salvos só neste aparelho. Baixe o Excel de vez em quando para ter uma cópia de segurança.'); return; }
   let db=null,user=null,uid=null;
   try{ db=await claude.use('db'); user=await claude.use('user'); uid=user?await user.id():null; }catch(e){}
   if(!db||!uid){ memoryMode('Você não está conectado, então os dados ficam só neste navegador. Abra o link logado na sua conta do Claude para guardar na sua conta.'); return; }
@@ -1550,5 +1557,6 @@ start();
 })();
 </script>
 
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
 </body>
 </html>
