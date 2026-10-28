@@ -498,7 +498,7 @@ function info(it,mo){
   const P=pf(it), due=dueOf(it,mo), paid=flow(it,mo,P), end=idxOf(mo);
   let st=startIdx(it); if(st==null) st=end;
   let prev=0;
-  for(let i=Math.max(st,end-240);i<end;i++){const k=keyOf(i); prev+=dueOf(it,k)-flow(it,k,P);}
+  for(let i=Math.max(st,end-1200);i<end;i++){const k=keyOf(i); prev+=dueOf(it,k)-flow(it,k,P);}
   return {due,paid,carry:Math.max(prev,0),aberto:Math.max(prev+due-paid,0)};
 }
 
@@ -543,6 +543,14 @@ function bankBal(b,mo){
   for(let i=s;i<=e;i++){
     const k=keyOf(i), io=bankIO(b,k); run+=io.inn-io.out;
     const c=cell(b,k), cf=ckf(b); if(c[cf]!==undefined) run=Number(c[cf])||0;
+  }
+  return run;
+}
+function bankBalCalc(b,mo){
+  const s=idxOf(bankIni(b)), e=idxOf(mo); let run=Number(b.saldoIni)||0;
+  for(let i=s;i<=e;i++){
+    const k=keyOf(i), io=bankIO(b,k); run+=io.inn-io.out;
+    if(i<e){ const c=cell(b,k), cf=ckf(b); if(c[cf]!==undefined) run=Number(c[cf])||0; }
   }
   return run;
 }
@@ -789,7 +797,7 @@ function vResumo(){
     '<p class="empty">Nada em aberto neste mês. Lance faturas e contas nas abas para acompanhar aqui.</p>';
   const ends=[...all('loan'),...all('veic'),...all('vdesp').filter(d=>d.tipo==='parcelado')].filter(p=>endKey(p)).sort((a,b)=>idxOf(endKey(a))-idxOf(endKey(b)));
   const endHtml=ends.length?ends.map(p=>'<div class="due"><span class="n">'+emo(p)+' '+esc(dispName(p))+'</span><span class="v">'+ic('flag')+' '+lab(endKey(p))+'</span></div>').join(''):'<p class="empty">Informe total de parcelas, parcelas já pagas e o mês de início em Empréstimos e Veículos.</p>';
-  return alertaP+alerta+hero+tiles+
+  return bkAlert()+alertaP+alerta+hero+tiles+
    '<div class="dash"><div class="panel"><h3>Devido e pago por categoria</h3>'+catBars(CATS,k.ct,'em aberto','Pago')+'<div class="legend"><span><i style="background:var(--c1)"></i>Pago</span><span><i style="background:var(--gold)"></i>Em aberto</span><span><i style="background:var(--bad)"></i>Em aberto de meses anteriores</span></div></div>'+
    '<div class="panel"><h3>Últimos 6 meses</h3>'+chart6()+'</div>'+
    '<div class="panel"><h3>O que falta pagar</h3>'+dueHtml+'</div>'+
@@ -803,7 +811,7 @@ function bankFace(b){
   const io=bankIO(b,sel), bal=bankBal(b,sel), r=bankRecv(b.id), ck=cell(b,sel).saldo!==undefined;
   return '<div class="bal'+(bal<0?' neg':'')+'">'+brl(bal)+'</div>'+
    '<div class="bio"><span class="in">Entrou <b>'+brl(io.inn)+'</b></span><span class="out">Saiu <b>'+brl(io.out)+'</b></span></div>'+
-   (ck?'<p class="foot">'+ic('check')+' Saldo conferido neste mês</p>':'')+
+   (ck?'<p class="foot">'+ic('check')+' Saldo conferido neste mês'+(Math.abs(bal-bankBalCalc(b,sel))>0.005?' · o app calculou <b>'+brl(bankBalCalc(b,sel))+'</b>, diferença de <b>'+brl(bal-bankBalCalc(b,sel))+'</b>':'')+'</p>':'')+
    (r.aberto>0.005||r.recebido>0.005?'<p class="foot">'+ic('receive')+' A receber aqui: <b>'+brl(r.aberto)+'</b>'+(r.recebido>0.005?' · já entrou <b>'+brl(r.recebido)+'</b>':'')+'</p>':'');
 }
 function bankWarn(){
@@ -1024,6 +1032,8 @@ function vConfig(){
    '<div class="group" style="margin-top:20px"><h3>'+ic('home')+' Contas de casa: vencimento</h3>'+(casas.length?casas.map(k=>row(k,int(k,'venc','Dia do vencimento'))).join(''):'<p class="empty">Nenhuma conta cadastrada.</p>')+'</div>'+
    '<div class="group" style="margin-top:20px"><div class="head"><div><h3>'+ic('repeat')+' Contas fixas</h3><p>Contas que se repetem todo mês. Cada uma entra em Contas de casa, em um cartão, em um empréstimo ou em um veículo, apenas dentro do período que você definir.</p></div></div>'+
    '<div class="list">'+(fx.length?fx.map(f=>'<article class="row">'+head(f)+'<div class="fields">'+money(f,'valor','Valor mensal')+int(f,'venc','Dia do vencimento')+selField(f,'destino','Onde essa conta entra',destOpts())+mesField(f,'inicio','Começa em')+mesOpt(f,'fim','Termina em (opcional)')+'</div>'+bind('fxp-'+f.id,fxPreview(f),true)+'</article>').join(''):'<p class="empty">Nenhuma conta fixa. Cadastre, por exemplo, "Plano Saff" ou "Seguro do carro".</p>')+'</div>'+addForm('fixa','Nova conta fixa, ex.: Plano Saff')+'</div>'+
+   '<div class="group" style="margin-top:24px"><h3>'+ic('doc')+' Cópia de segurança</h3><p class="note">Salva todos os seus dados em um arquivo (.json) para guardar no WhatsApp, e-mail ou Drive. Se trocar de aparelho ou limpar o navegador, basta restaurar a cópia. '+bkText()+'</p><div class="acts"><button class="btn gold" data-act="bk-save">'+ic('doc')+' Salvar cópia</button><button class="btn soft" data-act="bk-load">Restaurar cópia</button><input type="file" id="bk-file" accept=".json,application/json" hidden></div>'+
+   (pendingImport?'<div class="confirm"><p><b>'+ic('alert')+' Restaurar esta cópia?</b> '+pendingImport.itens.length+' itens'+(pendingImport.data?', salva em '+new Date(pendingImport.data).toLocaleDateString('pt-BR'):'')+'. Tudo o que está no app agora será substituído por ela.</p><div class="acts"><button class="btn" data-act="bk-cancel">Cancelar</button><button class="btn primary" data-act="bk-ok">Sim, restaurar</button></div></div>':'')+'</div>'+
    '<div class="group" style="margin-top:24px"><h3>'+ic('alert')+' Recomeçar do zero</h3><p class="note">Apaga todos os lançamentos, compras, contas fixas e itens que você criou, em todos os meses, e volta para a lista inicial de bancos, cartões e contas, tudo zerado. Útil depois de testar com dados fictícios. Baixe o Excel antes se quiser guardar alguma coisa.</p>'+
    (confirmClr==='reset'?'<div class="confirm"><p><b>'+ic('alert')+' Apagar toda a base?</b> Todos os dados serão excluídos e não dá para desfazer.</p><div class="acts"><button class="btn" data-act="clrcancel">Cancelar</button><button class="btn primary" data-act="reset-ok">Sim, apagar tudo</button></div></div>':'<div><button class="btn soft" data-act="reset-ask">'+ic('trash')+' Zerar toda a base</button></div>')+'</div>';
 }
@@ -1208,6 +1218,10 @@ document.addEventListener('click',e=>{
     persist(id); full();
   }else if(act==='clrrow'){
     confirmClr=(confirmClr===id?null:id); confirmDel=null; render();
+  }else if(act==='bk-save'){ doBackup();
+  }else if(act==='bk-load'){ const fi=document.getElementById('bk-file'); if(fi) fi.click();
+  }else if(act==='bk-cancel'){ pendingImport=null; full();
+  }else if(act==='bk-ok'){ applyImport();
   }else if(act==='reset-ask'){ confirmClr='reset'; confirmDel=null; render();
   }else if(act==='reset-ok'){ confirmClr=null; resetAll();
   }else if(act==='clrcancel'){
@@ -1277,6 +1291,14 @@ document.addEventListener('paste',e=>{if(e.target&&e.target.classList&&e.target.
 document.addEventListener('click',e=>{const el=e.target; if(el&&el.classList&&el.classList.contains('dt')){try{el.showPicker();}catch(x){}}});
 document.addEventListener('change',e=>{
   const el=e.target;
+  if(el.id==='bk-file'){
+    const file=el.files&&el.files[0]; el.value=''; if(!file) return;
+    if(file.size>8*1024*1024){ toast('Esse arquivo é grande demais para ser uma cópia do app.'); return; }
+    const fr=new FileReader();
+    fr.onload=()=>{ const r=parseBackup(String(fr.result||'')); if(!r){ toast('Esse arquivo não é uma cópia válida da Caderneta.'); return; } pendingImport=r; full(); };
+    fr.onerror=()=>toast('Não consegui ler o arquivo.');
+    fr.readAsText(file); return;
+  }
   if(el.id==='mes-sel'){ sel=el.value; confirmClr=null; full(); return; }
   if(!app.contains(el)) return;
   const f=el.getAttribute('data-f'); if(!f) return;
@@ -1327,6 +1349,38 @@ function dataToBlob(uri){
   const p=uri.split(','), mime=p[0].match(/:(.*?);/)[1], bin=atob(p[1]), a=new Uint8Array(bin.length);
   for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i);
   return new Blob([a],{type:mime});
+}
+let pendingImport=null;
+const BK_KINDS=new Set(['bank','card','vale','loan','casa','veic','vdesp','fixa','compra','invest','obra','meta','rec','div','cfg']);
+function hasData(){return [...items.values()].some(it=>it.kind==='compra'||Object.keys(it.m||{}).length||Number(it.saldoIni)||Number(it.parcela)||Number(it.valor)||Number(it.total)||Number(it.emprestado));}
+function bkDays(){const c=cfg(); if(!c.lastBackup) return null; const t=Date.parse(c.lastBackup); return isFinite(t)?Math.floor((Date.now()-t)/86400000):null;}
+function bkText(){const c=cfg(); const t=c.lastBackup&&Date.parse(c.lastBackup); return t?'Última cópia: '+new Date(t).toLocaleDateString('pt-BR')+'.':'Você ainda não salvou nenhuma cópia.';}
+function bkAlert(){
+  if(!hasData()) return '';
+  const d=bkDays(); if(d!==null&&d<7) return '';
+  return '<div class="alert-b">'+ic('alert')+' '+(d===null?'Você ainda não salvou uma cópia de segurança dos seus dados.':'Faz <b>'+d+' dias</b> que você não salva uma cópia de segurança.')+' <button type="button" class="lk" data-act="tab" data-tab="config">Salvar agora em Configurações</button></div>';
+}
+function backupData(){return JSON.stringify({app:'caderneta-de-contas',versao:1,exportadoEm:new Date().toISOString(),itens:[...items.values()]},null,1);}
+function doBackup(){
+  const c=cfg(); c.lastBackup=new Date().toISOString(); items.set('cfg',c); persist('cfg');
+  saveFile('Copia-Caderneta-'+todayISO()+'.json',new Blob([backupData()],{type:'application/json'})); full();
+}
+function parseBackup(txt){
+  let o; try{o=JSON.parse(txt);}catch(e){return null;}
+  if(!o||o.app!=='caderneta-de-contas'||!Array.isArray(o.itens)||!o.itens.length) return null;
+  for(const x of o.itens){ if(!x||typeof x!=='object'||typeof x.id!=='string'||!BK_KINDS.has(x.kind)) return null; }
+  return {itens:o.itens,data:o.exportadoEm||''};
+}
+async function applyImport(){
+  if(!pendingImport) return;
+  const L=pendingImport.itens.map(x=>{const y=clone(x); migrate(y); return y;}); pendingImport=null;
+  if(!col){ items=new Map(L.map(x=>[x.id,x])); if(!items.has('cfg')) items.set('cfg',cfg()); saveLocal(); setStatus('local'); sel=CUR; full(); toast('Cópia restaurada.'); return; }
+  seeding=true; setStatus('busy');
+  try{
+    for(const id of [...items.keys()]){ await (chains[id]||Promise.resolve()); await col.doc(id).delete(); }
+    items=new Map(); for(const x of L){ const b=Object.assign({},x); delete b.id; await col.doc(x.id).set(b); items.set(x.id,x); }
+  }catch(e){ seeding=false; setStatus('err'); toast('Não consegui restaurar tudo. Tente de novo.'); return; }
+  seeding=false; setStatus('ok'); sel=CUR; full(); toast('Cópia restaurada.');
 }
 async function saveFile(name,blob){
   let dl=null;
@@ -1537,8 +1591,9 @@ async function seed(){
   seeding=false;
 }
 async function start(){
+  try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
   render();
-  if(OFFLINE){ memoryMode('Seus dados ficam salvos só neste aparelho. Baixe o Excel de vez em quando para ter uma cópia de segurança.'); return; }
+  if(OFFLINE){ memoryMode('Seus dados ficam salvos só neste aparelho. Em Configurações você pode salvar uma cópia de segurança.'); return; }
   let db=null,user=null,uid=null;
   try{ db=await claude.use('db'); user=await claude.use('user'); uid=user?await user.id():null; }catch(e){}
   if(!db||!uid){ memoryMode('Você não está conectado, então os dados ficam só neste navegador. Abra o link logado na sua conta do Claude para guardar na sua conta.'); return; }
